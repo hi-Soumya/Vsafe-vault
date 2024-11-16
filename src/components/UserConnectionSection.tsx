@@ -1,107 +1,79 @@
 import React, { useState, useEffect } from 'react';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
-import { storachaService, ConnectedUser } from '../services/StorachaService';
+import { contractService } from '../services/ContractService';
 
-const UserConnectionSection: React.FC = () => {
-  const { user } = useDynamicContext();
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [connectedUsers, setConnectedUsers] = useState<ConnectedUser[]>([]);
-  const [isConnecting, setIsConnecting] = useState(false);
+const UserConnection: React.FC = () => {
+  const { primaryWallet } = useDynamicContext();
+  const [recipientAddress, setRecipientAddress] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   useEffect(() => {
-    loadConnectedUsers();
-  }, [user?.email]);
+    const checkAdminStatus = async () => {
+      if (primaryWallet?.address) {
+        try {
+          const adminStatus = await contractService.checkIsAdmin(primaryWallet.address);
+          setIsAdmin(adminStatus);
+        } catch (error) {
+          console.error('Failed to check admin status:', error);
+        }
+      }
+    };
 
-  const loadConnectedUsers = async () => {
-    if (!user?.email) return;
-    
-    try {
-      const users = await storachaService.getConnectedUsers(user.email);
-      setConnectedUsers(users);
-    } catch (err) {
-      console.error('Failed to load connected users:', err);
-      setError('Failed to load connected users');
-    }
-  };
+    checkAdminStatus();
+  }, [primaryWallet?.address]);
 
-  const handleConnect = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user?.email || !newUserEmail) return;
+  const handleConnect = async () => {
+    if (!primaryWallet?.address || !recipientAddress || !isAdmin) return;
 
     setIsConnecting(true);
     setError(null);
 
     try {
-      await storachaService.connectUser(user.email, newUserEmail);
-      setConnectedUsers(prev => [...prev, { email: newUserEmail, status: 'pending' }]);
-      setNewUserEmail('');
-    } catch (error) {
-      console.error('Error connecting with user:', error);
-      setError('Failed to connect with user. Please try again.');
+      await contractService.connectUser(recipientAddress);
+      setRecipientAddress('');
+    } catch (err) {
+      console.error('Failed to connect user:', err);
+      setError('Failed to connect user. Please check the address and try again.');
     } finally {
       setIsConnecting(false);
     }
   };
 
+  if (!isAdmin) return null;
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-xl font-semibold text-gray-800 mb-6">Connect with Users</h2>
-      
+    <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+      <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        Connect Users (Admin Only)
+      </h2>
+
       {error && (
         <div className="mb-4 p-4 bg-red-50 text-red-700 rounded-md">
           {error}
         </div>
       )}
 
-      <form onSubmit={handleConnect} className="mb-6">
-        <div className="flex gap-4">
-          <input
-            type="email"
-            value={newUserEmail}
-            onChange={(e) => setNewUserEmail(e.target.value)}
-            placeholder="Enter user email"
-            className="flex-1 p-2 border rounded-md focus:ring-2 focus:ring-indigo-500"
-            required
-          />
-          <button
-            type="submit"
-            disabled={isConnecting}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400"
-          >
-            {isConnecting ? 'Connecting...' : 'Connect'}
-          </button>
-        </div>
-      </form>
-
-      <div>
-        <h3 className="font-medium text-gray-700 mb-4">Connected Users</h3>
-        {connectedUsers.length === 0 ? (
-          <p className="text-gray-500 text-center py-4">
-            No connected users yet
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {connectedUsers.map(user => (
-              <div
-                key={user.email}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
-              >
-                <span className="text-gray-700">{user.email}</span>
-                <span className={`px-2 py-1 rounded text-sm ${
-                  user.status === 'connected'
-                    ? 'bg-green-100 text-green-800'
-                    : 'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {user.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="flex gap-4">
+        <input
+          type="text"
+          value={recipientAddress}
+          onChange={(e) => setRecipientAddress(e.target.value)}
+          placeholder="Enter user's Ethereum address"
+          className="flex-1 p-2 border rounded"
+          disabled={isConnecting}
+        />
+        <button
+          onClick={handleConnect}
+          disabled={isConnecting || !recipientAddress}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400"
+        >
+          {isConnecting ? 'Connecting...' : 'Connect User'}
+        </button>
       </div>
     </div>
   );
 };
 
-export default UserConnectionSection;
+export default UserConnection;

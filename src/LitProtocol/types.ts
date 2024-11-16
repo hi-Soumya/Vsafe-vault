@@ -1,4 +1,19 @@
-import { LitNodeClient } from "@lit-protocol/lit-node-client";
+export interface StoredImage {
+  cid: string;
+  url: string;
+  metadataUrl: string;
+  name: string;
+  timestamp: number;
+  owner: string;
+  encryptedSymmetricKey?: string;
+  isRevoked?: boolean;
+  sharedWith?: string[];
+}
+
+export interface ConnectedUser {
+  email: string;
+  status: 'pending' | 'connected';
+}
 
 export interface EncryptionResult {
   encryptedFile: Blob;
@@ -8,32 +23,6 @@ export interface EncryptionResult {
 export interface AccessControlConditions {
   contractAddress: string;
   standardContractType: string;
-  chain: string;
-  method: string;
-  parameters: string[];
-  returnValueTest: {
-    comparator: string;
-    value: string;
-  };
-}
-
-export interface SharedImageMetadata {
-  cid: string;
-  url: string;
-  encryptedSymmetricKey: string;
-  owner: string;
-  sharedWith: string[];
-  isRevoked: boolean;
-  timestamp: number;
-}
-
-export interface LitClientInstance {
-  litNodeClient: LitNodeClient | null;
-}
-
-// New types for our specific use case
-export interface ImageAccessConditions {
-  contractAddress: string;
   chain: string;
   method: string;
   parameters: string[];

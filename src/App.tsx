@@ -12,7 +12,7 @@ import { EthereumWalletConnectors } from "@dynamic-labs/ethereum";
 import { LitProvider } from './LitProtocol/LitContextProvider';
 import Login from './dynamic/Login';
 import Dashboard from './components/Dashboard';
-//import { StorachaProvider } from './components/StorachaProvider';
+import { StorachaProvider } from './components/StorachaProvider';  // Added import
 
 const config = createConfig({
   chains: [mainnet],
@@ -79,7 +79,9 @@ const App = () => {
         <QueryClientProvider client={queryClient}>
           <DynamicWagmiConnector>
             <LitProvider>
+              <StorachaProvider>
                 <MainContent />
+              </StorachaProvider>
             </LitProvider>
           </DynamicWagmiConnector>
         </QueryClientProvider>
