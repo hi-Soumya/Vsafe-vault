@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { StoredImage } from '../../types';
 
 export interface ImageUploadProps {
-  onUpload: (file: File) => Promise<StoredImage>;
+  onUpload: (file: File) => Promise<any>;
 }
 
 const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -27,10 +27,15 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload }) => {
     if (!selectedFile) return;
 
     setIsUploading(true);
+    setError(null);
+
     try {
       await onUpload(selectedFile);
       setSelectedFile(null);
       setPreviewUrl(null);
+    } catch (err) {
+      setError('Failed to upload file. Please try again.');
+      console.error('Upload error:', err);
     } finally {
       setIsUploading(false);
     }
@@ -42,25 +47,36 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ onUpload }) => {
         Upload New Image
       </h2>
 
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit}>
         <input
           type="file"
           accept="image/*"
           onChange={handleFileSelect}
           disabled={isUploading}
+          className="mb-4"
         />
+        
         {previewUrl && (
-          <img 
-            src={previewUrl} 
-            alt="Preview" 
-            className="mt-4 max-h-48 object-contain"
-          />
+          <div className="mb-4">
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="max-h-48 object-contain rounded"
+            />
+          </div>
         )}
+
         {selectedFile && (
           <button
             type="submit"
             disabled={isUploading}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-blue-400"
           >
             {isUploading ? 'Uploading...' : 'Upload'}
           </button>

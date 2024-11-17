@@ -1,77 +1,39 @@
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer';
 import { create } from "@web3-storage/w3up-client";
 import * as Signer from '@ucanto/principal/ed25519';
 import { StoreMemory } from '@web3-storage/w3up-client/stores/memory';
-import * as Delegation from '@ucanto/core/delegation';
 import dotenv from 'dotenv';
-import multer from 'multer';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 dotenv.config();
 
 const app = express();
 
-// Configure multer to use memory storage
+// Configure multer with memory storage
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// Configure CORS
+// Update CORS configuration
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
 
 app.use(express.json());
 
-class StorageService {
-  private client: any;
-  private initialized = false;
-  private initPromise: Promise<void> | null = null;
-
-  async initialize() {
-    if (this.initialized) return;
-    if (this.initPromise) return this.initPromise;
-
-    this.initPromise = (async () => {
-      try {
-        // Initialize with provided key
-        const principal = Signer.parse(process.env.W3UP_KEY!);
-        const store = new StoreMemory();
-        this.client = await create({ principal, store });
-        
-        // Add provided proof
-        const proofBytes = Buffer.from(process.env.W3UP_PROOF!, 'base64');
-        const delegation = await Delegation.extract(proofBytes);
-        
-        if (!delegation.ok) {
-          throw new Error('Failed to extract delegation');
-        }
-
-        const space = await this.client.addSpace(delegation.ok);
-        await this.client.setCurrentSpace(space.did());
-        
-        this.initialized = true;
-        console.log('Storage service initialized with space DID:', space.did());
-      } catch (error) {
-        console.error('Failed to initialize storage service:', error);
-        throw error;
-      } finally {
-        this.initPromise = null;
-      }
-    })();
-
-    return this.initPromise;
-  }
-
+// Simple storage service
+const storageService = {
   async uploadFile(file: Buffer, filename: string, mimetype: string) {
-    await this.initialize();
-
     try {
+      // Generate a new key pair
+      const principal = await Signer.generate();
+      const store = new StoreMemory();
+      const client = await create({ principal, store });
+
+      // Create File objects
       const files = [
         new File([file], filename, { type: mimetype }),
         new File(
@@ -86,7 +48,8 @@ class StorageService {
         )
       ];
 
-      const cid = await this.client.uploadDirectory(files);
+      // Upload to web3.storage
+      const cid = await client.uploadDirectory(files);
       
       return {
         cid: cid.toString(),
@@ -94,16 +57,14 @@ class StorageService {
         metadataUrl: `https://${cid}.ipfs.w3s.link/metadata.json`
       };
     } catch (error) {
-      console.error('Failed to upload file:', error);
+      console.error('Upload failed:', error);
       throw error;
     }
   }
-}
+};
 
-const storageService = new StorageService();
-
-// Upload route
-app.post('/api/upload', upload.single('file'), async (req: express.Request, res: express.Response) => {
+// Upload endpoint
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });
@@ -124,12 +85,15 @@ app.post('/api/upload', upload.single('file'), async (req: express.Request, res:
     console.log('Upload successful:', result);
     res.json(result);
   } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({ error: 'Failed to upload file' });
+    console.error('Server upload error:', error);
+    res.status(500).json({
+      error: 'Failed to upload file',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
-// Health check route
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'OK' });
 });

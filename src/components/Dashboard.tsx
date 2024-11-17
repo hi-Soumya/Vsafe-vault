@@ -47,15 +47,20 @@ const Dashboard: React.FC = () => {
       const response = await fetch(`${API_URL}/api/upload`, {
         method: 'POST',
         body: formData,
+        credentials: 'include',  // Added this line
+        headers: {
+          'Accept': 'application/json',  // Added this line
+        }
       });
 
+      clearInterval(progressInterval);
+
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Upload failed');
       }
 
       const result = await response.json();
-      
-      clearInterval(progressInterval);
       setUploadProgress(100);
 
       const newImage: UploadedImage = {
@@ -76,7 +81,7 @@ const Dashboard: React.FC = () => {
       });
     } catch (err) {
       console.error('Error uploading file:', err);
-      setError('Failed to upload file. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to upload file. Please try again.');
     } finally {
       setIsUploading(false);
       setSelectedFile(null);

@@ -5,15 +5,21 @@ import { storachaService } from '../services/StorachaService';
 import { contractService } from '../services/ContractService';
 import { useLit } from '../LitProtocol/LitContextProvider';
 
-interface StorachaContextType {
-  personalImages: StoredImage[];
-  sharedImages: StoredImage[];
-  uploadImage: (file: File) => Promise<void>;
-  shareImage: (image: StoredImage, recipientAddress: string) => Promise<void>;
-  revokeAccess: (image: StoredImage, recipientAddress: string) => Promise<void>;
-  isLoading: boolean;
-  error: string | null;
-}
+interface UploadResult {
+    success: boolean;
+    image?: StoredImage;
+    error?: string;
+  }
+  
+  interface StorachaContextType {
+    personalImages: StoredImage[];
+    sharedImages: StoredImage[];
+    uploadImage: (file: File) => Promise<UploadResult>;
+    shareImage: (image: StoredImage, recipientAddress: string) => Promise<void>;
+    revokeAccess: (image: StoredImage, recipientAddress: string) => Promise<void>;
+    isLoading: boolean;
+    error: string | null;
+  }
 
 const StorachaContext = createContext<StorachaContextType | null>(null);
 
@@ -66,8 +72,10 @@ export const StorachaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     initializeServices();
   }, [primaryWallet?.address, user?.email]);
 
-  const uploadImage = async (file: File) => {
-    if (!user?.email || !primaryWallet?.address) return;
+  const uploadImage = async (file: File): Promise<UploadResult> => {
+    if (!user?.email || !primaryWallet?.address) {
+      return { success: false, error: 'User not authenticated' };
+    }
 
     try {
       // 1. Encrypt file using Lit Protocol
@@ -94,9 +102,14 @@ export const StorachaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       };
 
       setPersonalImages(prev => [...prev, finalImage]);
+      
+      return { success: true, image: finalImage };
     } catch (error) {
       console.error('Failed to upload image:', error);
-      throw error;
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Failed to upload image' 
+      };
     }
   };
 

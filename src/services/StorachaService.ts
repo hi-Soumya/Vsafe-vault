@@ -1,6 +1,17 @@
 import { StoredImage, ConnectedUser } from '../types';
 
-export class StorachaService {
+export interface IStorachaService {
+  ensureInitialized(): Promise<void>;
+  uploadFile(file: File, ownerEmail: string): Promise<StoredImage>;
+  getPersonalImages(ownerEmail: string): Promise<StoredImage[]>;
+  getSharedImages(email: string): Promise<StoredImage[]>;
+  connectUser(adminEmail: string, userEmail: string): Promise<void>;
+  shareImage(cid: string, ownerEmail: string, recipientEmail: string): Promise<void>;
+  revokeAccess(cid: string, ownerEmail: string, recipientEmail: string): Promise<void>;
+  getConnectedUsers(adminEmail: string): Promise<ConnectedUser[]>;
+}
+
+class StorachaService implements IStorachaService {
   private readonly apiUrl: string;
 
   constructor() {
@@ -8,10 +19,24 @@ export class StorachaService {
   }
 
   public async ensureInitialized(): Promise<void> {
-    // Check server health
-    const response = await fetch(`${this.apiUrl}/health`);
-    if (!response.ok) {
-      throw new Error('Server not available');
+    try {
+      const response = await fetch(`${this.apiUrl}/health`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Server not available');
+      }
+
+      const data = await response.json();
+      console.log('Server health check:', data);
+    } catch (error) {
+      console.error('Server health check failed:', error);
+      throw new Error('Failed to connect to server');
     }
   }
 
@@ -22,7 +47,8 @@ export class StorachaService {
     try {
       const response = await fetch(`${this.apiUrl}/api/upload`, {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -48,11 +74,13 @@ export class StorachaService {
   }
 
   public async getPersonalImages(ownerEmail: string): Promise<StoredImage[]> {
-    return JSON.parse(localStorage.getItem(`images-${ownerEmail}`) || '[]');
+    const stored = localStorage.getItem(`images-${ownerEmail}`);
+    return stored ? JSON.parse(stored) : [];
   }
 
   public async getSharedImages(email: string): Promise<StoredImage[]> {
-    return JSON.parse(localStorage.getItem(`shared-images-${email}`) || '[]');
+    const stored = localStorage.getItem(`shared-images-${email}`);
+    return stored ? JSON.parse(stored) : [];
   }
 
   public async connectUser(adminEmail: string, userEmail: string): Promise<void> {
@@ -97,7 +125,8 @@ export class StorachaService {
   }
 
   public async getConnectedUsers(adminEmail: string): Promise<ConnectedUser[]> {
-    return JSON.parse(localStorage.getItem(`connected-users-${adminEmail}`) || '[]');
+    const stored = localStorage.getItem(`connected-users-${adminEmail}`);
+    return stored ? JSON.parse(stored) : [];
   }
 }
 
