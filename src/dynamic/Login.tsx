@@ -1,9 +1,16 @@
 import React from 'react';
 import { DynamicWidget, useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { IDKitWidget, VerificationLevel } from '@worldcoin/idkit'
+
 
 const Login: React.FC = () => {
   const { primaryWallet } = useDynamicContext();
-  
+  const verifyProof = () => {
+    console.log("Verification done! 🎉");
+  };
+  const onSuccess = () => {
+    console.log("Verification successful! 🎉");
+  };  
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-6">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
@@ -20,6 +27,21 @@ const Login: React.FC = () => {
               <p className="text-sm text-gray-500 mb-4">
                 Connect your wallet to start sharing encrypted images
               </p>
+              <IDKitWidget
+    app_id="app_staging_b3d9b7f78b14f205d96d88df97f909fe"
+    action="thevapp"
+    false
+    verification_level={VerificationLevel.Device}
+    handleVerify={verifyProof}
+    onSuccess={onSuccess}>
+    {({ open }) => (
+      <button
+        onClick={open}
+      >
+        Verify with World ID
+      </button>
+    )}
+</IDKitWidget>
               <div className="flex justify-center">
                 <DynamicWidget />
               </div>

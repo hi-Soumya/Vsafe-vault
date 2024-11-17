@@ -14,6 +14,7 @@ import Login from './dynamic/Login';
 import Dashboard from './components/Dashboard';
 import { StorachaProvider } from './components/StorachaProvider';  // Added import
 
+
 const config = createConfig({
   chains: [mainnet],
   multiInjectedProviderDiscovery: false,
